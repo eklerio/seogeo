@@ -1,0 +1,9 @@
+services:
+  seogeo-web:
+    build: .
+    container_name: seogeo-web
+    env_file:
+      - .env.local
+    ports:
+      - "127.0.0.1:5006:3000"
+    restart: unless-stopped
