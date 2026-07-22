@@ -294,7 +294,7 @@ function SearchConsoleCard({
           <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-xs leading-relaxed text-muted">
             <li>
               Open <span className="text-foreground/80">console.cloud.google.com</span> with your work Google account
-              and create a project (any name, e.g. &ldquo;SEOGEO&rdquo;).
+              and create a project (any name, e.g. &ldquo;Glinton&rdquo;).
             </li>
             <li>
               Search for <span className="text-foreground/80">&ldquo;Search Console API&rdquo;</span> → Enable. Then{" "}
@@ -302,7 +302,7 @@ function SearchConsoleCard({
             </li>
             <li>
               Search for <span className="text-foreground/80">&ldquo;OAuth consent screen&rdquo;</span> → choose{" "}
-              <span className="text-foreground/80">Internal</span> → app name &ldquo;SEOGEO&rdquo; → your email → Save.
+              <span className="text-foreground/80">Internal</span> → app name &ldquo;Glinton&rdquo; → your email → Save.
               (If Internal isn&rsquo;t offered, pick External and add yourself as a test user.)
             </li>
             <li>

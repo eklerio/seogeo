@@ -14,7 +14,7 @@ export default async function WorkspacePage({
 }) {
   const { board, tab } = await searchParams;
   const all = await listDestinations();
-  if (all.length === 0) redirect("/");
+  if (all.length === 0) redirect("/start");
   const active = all.find((d) => d.id === board) ?? all[all.length - 1];
   const initialTab: Tab = VALID_TABS.includes(tab ?? "") ? (tab as Tab) : "Overview";
   return (

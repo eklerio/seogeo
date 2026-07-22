@@ -79,7 +79,7 @@ export default function Onboarding({
     <main className="mx-auto w-full max-w-2xl px-6 py-14">
       <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-[0.2em] text-accent2">
         <span className="h-2 w-2 rounded-full bg-accent2" />
-        SEOGEO Solver
+        Glinton
       </div>
 
       <Steps current={stepNumber} />
@@ -179,7 +179,7 @@ export default function Onboarding({
           </p>
 
           <div className="mt-8">
-            <ConnectionCards destId={savedId ?? undefined} googleAuthBack="/?connect=1" result={googleResult} />
+            <ConnectionCards destId={savedId ?? undefined} googleAuthBack="/start?connect=1" result={googleResult} />
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-4">

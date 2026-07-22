@@ -1,22 +1,9 @@
-import { redirect } from "next/navigation";
-import { getActiveDestination } from "@/lib/store";
-import Onboarding from "@/components/Onboarding";
+import Landing from "@/components/Landing";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ new?: string; connect?: string; google?: string; reason?: string }>;
-}) {
-  const { new: addBoard, connect, google, reason } = await searchParams;
-  const active = await getActiveDestination();
-  if (active && !addBoard && !connect) redirect("/workspace");
-  return (
-    <Onboarding
-      addBoard={!!addBoard}
-      initialStep={connect ? "connect" : "url"}
-      googleResult={google === "ok" ? "ok" : google ? (reason ?? "exchange_failed") : null}
-    />
-  );
+// Public landing page — shown to everyone at the root URL. The private app lives at
+// /workspace, and first-time onboarding at /start.
+export default function Home() {
+  return <Landing />;
 }

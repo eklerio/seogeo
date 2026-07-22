@@ -74,7 +74,7 @@ export default function SettingsView({
           </button>
         ))}
         <button
-          onClick={() => router.push("/?new=1")}
+          onClick={() => router.push("/start?new=1")}
           title="Add board"
           className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-black/[0.04] hover:text-foreground"
         >
@@ -337,7 +337,7 @@ function TerminateSection({
       });
       if (!res.ok) throw new Error("delete failed");
       const data = await res.json();
-      router.push(data.nextBoardId ? `/workspace?board=${data.nextBoardId}` : "/");
+      router.push(data.nextBoardId ? `/workspace?board=${data.nextBoardId}` : "/start");
       router.refresh();
     } catch {
       setError("Couldn’t delete the board. Please try again.");

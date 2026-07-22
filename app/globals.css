@@ -53,3 +53,60 @@ select {
 .glow {
   box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
 }
+
+/* ── Landing page (Caldera-style, green/graphite/white/gray) ────────────────
+   Flat and shadowless: hierarchy comes from surface color contrast (gray canvas
+   → off-white cards → lime feature cards) plus big radii and pill controls.
+   Display face is Anton (condensed ultrabold substitute), body is DM Sans 500. */
+.landing-display {
+  font-family: var(--font-anton), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 0.94;
+}
+.landing-body {
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+}
+/* Halftone dot pattern — the signature hero motif, recolored lime-on-graphite. */
+.landing-halftone {
+  background-image: radial-gradient(rgba(163, 230, 53, 0.9) 1.5px, transparent 1.5px);
+  background-size: 11px 11px;
+}
+.landing-dotted-divider {
+  border-top: 1.5px dotted #0b0b0a;
+}
+
+/* Scroll reveal (transform/opacity only, GPU-composited). Elements are visible
+   by default; the inline script adds `reveal-ready` to <html> before first
+   paint to opt them into the hidden start state — so if JS is absent/broken,
+   content stays visible. IntersectionObserver adds `is-in` to play it. */
+.reveal-ready .lg-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+.reveal-ready .lg-reveal.is-in {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready .lg-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

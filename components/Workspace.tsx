@@ -434,7 +434,7 @@ export default function Workspace({
       <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-edge bg-panel/60 px-5 py-6 lg:sticky lg:top-0 lg:order-first lg:h-screen lg:w-72 lg:overflow-y-auto lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-accent2">
           <span className="h-2 w-2 rounded-full bg-accent2" />
-          SEOGEO Solver
+          Glinton
         </div>
 
         <div className="relative">
@@ -513,7 +513,7 @@ export default function Workspace({
                 <button
                   onClick={() => {
                     setBoardsOpen(false);
-                    router.push("/?new=1");
+                    router.push("/start?new=1");
                   }}
                   className="w-full border-t border-edge px-3 py-2.5 text-center text-sm font-semibold text-accent transition hover:bg-panel"
                 >

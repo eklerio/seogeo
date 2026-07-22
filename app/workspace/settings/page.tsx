@@ -13,7 +13,7 @@ export default async function SettingsPage({
 }) {
   const { board, section } = await searchParams;
   const all = await listDestinations();
-  if (all.length === 0) redirect("/");
+  if (all.length === 0) redirect("/start");
   const active = all.find((d) => d.id === board) ?? all[all.length - 1];
   const initialSection = SECTIONS.includes(section as SettingsSection)
     ? (section as SettingsSection)
