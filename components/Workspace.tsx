@@ -432,9 +432,9 @@ export default function Workspace({
 
       {/* Left sidebar */}
       <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-edge bg-panel/60 px-5 py-6 lg:sticky lg:top-0 lg:order-first lg:h-screen lg:w-72 lg:overflow-y-auto lg:border-b-0 lg:border-r">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-accent2">
-          <span className="h-2 w-2 rounded-full bg-accent2" />
-          Glinton
+        <div className="flex items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/glinton-solid.png" alt="Glinton" className="h-6 w-auto" />
         </div>
 
         <div className="relative">
