@@ -18,7 +18,10 @@ export default async function WorkspacePage({
   const active = all.find((d) => d.id === board) ?? all[all.length - 1];
   const initialTab: Tab = VALID_TABS.includes(tab ?? "") ? (tab as Tab) : "Overview";
   return (
+    // Keyed by board so switching boards starts clean — no numbers (or an in-flight run's
+    // result) from the previous board can carry over.
     <Workspace
+      key={active.id}
       destination={active}
       destinations={all}
       initialTab={initialTab}

@@ -134,9 +134,22 @@ type EngineResult = {
   perQuestion: { answered: boolean; appeared: boolean }[];
 };
 
-/** Ask one AI engine every tracked question (the paid step). Order matches dest.questions. */
-async function engineAnswers(engine: EngineId, dest: Destination): Promise<string[]> {
-  return mapLimit(dest.questions, 6, (q) => llmAnswer(engine, q.text).catch(() => ""));
+/**
+ * Ask one AI engine every tracked question (the paid step). Order matches dest.questions.
+ * A failed question comes back as "" (scored as "no answer", not "not named") and is counted.
+ */
+async function engineAnswers(
+  engine: EngineId,
+  dest: Destination
+): Promise<{ answers: string[]; failed: number }> {
+  let failed = 0;
+  const answers = await mapLimit(dest.questions, 6, (q) =>
+    llmAnswer(engine, q.text).catch(() => {
+      failed++;
+      return "";
+    })
+  );
+  return { answers, failed };
 }
 
 /** Score raw answers against current company/competitor names (free — no API calls). */
@@ -169,6 +182,7 @@ async function competitorIntel(dest: Destination): Promise<{
   estVisits: number | null;
   traffic: TrafficRow[];
   keywordGaps: KeywordGap[];
+  failed?: boolean; // some pull failed — don't cache this result
 }> {
   const companyDomain = hostOf(dest.url);
   const competitors = dest.competitors
@@ -178,10 +192,23 @@ async function competitorIntel(dest: Destination): Promise<{
 
   const allDomains = [companyDomain, ...competitors.map((c) => c.domain)];
 
+  let failed = false;
+  let companyKwsFailed = false;
   const [trafficByDomain, companyKws, competitorKwLists] = await Promise.all([
-    trafficEstimate(allDomains).catch(() => ({}) as Awaited<ReturnType<typeof trafficEstimate>>),
-    rankedKeywords(companyDomain, 200).catch(() => []),
-    mapLimit(competitors, 4, (c) => rankedKeywords(c.domain, 200).catch(() => [])),
+    trafficEstimate(allDomains).catch(() => {
+      failed = true;
+      return {} as Awaited<ReturnType<typeof trafficEstimate>>;
+    }),
+    rankedKeywords(companyDomain, 200).catch(() => {
+      failed = companyKwsFailed = true;
+      return [];
+    }),
+    mapLimit(competitors, 4, (c) =>
+      rankedKeywords(c.domain, 200).catch(() => {
+        failed = true;
+        return [];
+      })
+    ),
   ]);
 
   const traffic: TrafficRow[] = allDomains.map((domain, i) => ({
@@ -230,10 +257,16 @@ async function competitorIntel(dest: Destination): Promise<{
     .sort((a, b) => (b.searchVolume ?? 0) - (a.searchVolume ?? 0))
     .slice(0, 25);
 
-  return { estVisits: trafficByDomain[companyDomain]?.estVisits ?? null, traffic, keywordGaps };
+  return {
+    estVisits: trafficByDomain[companyDomain]?.estVisits ?? null,
+    traffic,
+    // Without the company's own keyword list every competitor phrase would look like a "gap".
+    keywordGaps: companyKwsFailed ? [] : keywordGaps,
+    failed,
+  };
 }
 
-type IntelResult = Awaited<ReturnType<typeof competitorIntel>>;
+type IntelResult = Omit<Awaited<ReturnType<typeof competitorIntel>>, "failed">;
 type IntelCacheEntry = { fetchedAt: string; sig: string; data: IntelResult };
 
 const INTEL_CACHE = path.join(process.cwd(), "data", "intel-cache.json");
@@ -248,19 +281,25 @@ function competitorSig(dest: Destination): string {
   return [hostOf(dest.url), ...comps].join("|");
 }
 
+async function readIntelCache(): Promise<Record<string, IntelCacheEntry>> {
+  try {
+    return JSON.parse(await fs.readFile(INTEL_CACHE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
 async function cachedCompetitorIntel(dest: Destination): Promise<IntelResult> {
   const sig = competitorSig(dest);
-  let cache: Record<string, IntelCacheEntry> = {};
-  try {
-    cache = JSON.parse(await fs.readFile(INTEL_CACHE, "utf8"));
-  } catch {
-    cache = {};
-  }
+  let cache = await readIntelCache();
   const hit = cache[dest.id];
   if (hit && hit.sig === sig && Date.now() - new Date(hit.fetchedAt).getTime() < WEEK_MS) {
     return hit.data;
   }
-  const data = await competitorIntel(dest);
+  const { failed, ...data } = await competitorIntel(dest);
+  // Only cache a clean pull — a failure must not lock in empty lists for a week.
+  if (failed) return data;
+  cache = await readIntelCache(); // re-read: another board may have written meanwhile
   cache[dest.id] = { fetchedAt: new Date().toISOString(), sig, data };
   try {
     await fs.mkdir(path.dirname(INTEL_CACHE), { recursive: true });
@@ -331,17 +370,23 @@ export async function cachedAnswersFor(dest: Destination): Promise<StoredAnswers
   return { engines, fetchedAt };
 }
 
-async function cachedEngineAnswers(engine: EngineId, dest: Destination): Promise<string[]> {
+async function cachedEngineAnswers(
+  engine: EngineId,
+  dest: Destination
+): Promise<{ answers: string[]; failed: number }> {
   const sig = questionsSig(dest);
   const key = `${dest.id}:${engine}`;
   const hit = (await readLlmCache())[key];
   if (hit && hit.sig === sig && Date.now() - new Date(hit.fetchedAt).getTime() < WEEK_MS) {
-    return hit.answers;
+    return { answers: hit.answers, failed: 0 };
   }
   // Fetch outside the write lock so both engines still run in parallel; only the writes serialize.
-  const answers = await engineAnswers(engine, dest);
-  await writeLlmCacheEntry(key, { fetchedAt: new Date().toISOString(), sig, answers });
-  return answers;
+  const result = await engineAnswers(engine, dest);
+  // Only cache a complete set — blank answers from a failed call must not stick for a week.
+  if (result.failed === 0) {
+    await writeLlmCacheEntry(key, { fetchedAt: new Date().toISOString(), sig, answers: result.answers });
+  }
+  return result;
 }
 
 // Bing search volumes barely move week to week but the call is comparatively pricey (~$0.09 for
@@ -536,15 +581,16 @@ export async function runReport(dest: Destination): Promise<Snapshot> {
 
   // Run AI Share of Voice (every selected engine), Google SERP, keyword metrics, and competitor
   // intel all at once — they're independent.
-  const [answersByEngine, serp, bingSerp, metricsByKw, bingMetricsByKw, intel] =
+  let serpFailed = 0;
+  const [engineResults, serp, bingSerp, metricsByKw, bingMetricsByKw, intel] =
     await Promise.all([
       Promise.all(engines.map((e) => cachedEngineAnswers(e, dest))),
       mapLimit(queries, 6, async (query) => ({
         query,
-        ...(await serpAnalyze(query, dest.url).catch(() => ({
-          rank: null,
-          aiOverview: { present: false, cited: false },
-        }))),
+        ...(await serpAnalyze(query, dest.url).catch(() => {
+          serpFailed++;
+          return { rank: null, aiOverview: { present: false, cited: false } };
+        })),
       })),
       mapLimit(queries, 6, async (query) => ({
         query,
@@ -557,7 +603,20 @@ export async function runReport(dest: Destination): Promise<Snapshot> {
       cachedCompetitorIntel(dest),
     ]);
 
-  const scored = answersByEngine.map((answers) => scoreAnswers(answers, dest));
+  // When the data provider is down or out of credit every call fails. Saving that as a snapshot
+  // would show fake zeros/"—" and a fake drop on the Overview, so stop and say so instead.
+  const totalAsked = engineResults.reduce((s, r) => s + r.answers.length, 0);
+  const totalFailed = engineResults.reduce((s, r) => s + r.failed, 0);
+  const aiAllFailed = totalAsked > 0 && totalFailed === totalAsked;
+  const googleAllFailed = queries.length > 0 && serpFailed === queries.length;
+  if (aiAllFailed || googleAllFailed) {
+    throw new Error(
+      `Couldn't get ${aiAllFailed ? "AI answers" : "Google rankings"} from the data provider — ` +
+        "it may be down or out of credit (check the DataForSEO balance). Nothing was saved."
+    );
+  }
+
+  const scored = engineResults.map((r) => scoreAnswers(r.answers, dest));
 
   const bingByQuery = new Map(bingSerp.map((b) => [b.query.toLowerCase(), b.rank]));
   const ranks: RankRow[] = serp.map((r) => {

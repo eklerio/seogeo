@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const cookies = req.headers.get("cookie") ?? "";
   const rawBack = cookies.match(/(?:^|;\s*)google_oauth_back=([^;]+)/)?.[1];
   const back = rawBack ? decodeURIComponent(rawBack) : "/workspace";
-  const backPath = back.startsWith("/") ? back : "/workspace";
+  const backPath = /^\/(?![\/\\])/.test(back) ? back : "/workspace"; // "//x" would leave the site
   const destCookie = cookies.match(/(?:^|;\s*)google_oauth_dest=([^;]+)/)?.[1];
 
   const redirectTo = (params: Record<string, string>) => {

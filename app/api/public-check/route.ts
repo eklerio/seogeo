@@ -11,14 +11,22 @@ const MAX_CHECKS = 5;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const hits = new Map<string, number[]>();
 
+// Cloudflare sets cf-connecting-ip itself, so it can't be faked. x-forwarded-for can: Cloudflare
+// appends to whatever the visitor sent, so only its LAST entry is trustworthy.
 function clientIp(req: Request): string {
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
   const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return req.headers.get("cf-connecting-ip") ?? "unknown";
+  if (fwd) return fwd.split(",").pop()!.trim();
+  return "unknown";
 }
 
 function rateLimited(ip: string): boolean {
   const now = Date.now();
+  // Drop expired visitors so the map can't grow forever.
+  if (hits.size > 10_000) {
+    for (const [k, ts] of hits) if (!ts.some((t) => now - t < WINDOW_MS)) hits.delete(k);
+  }
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
   if (recent.length >= MAX_CHECKS) {
     hits.set(ip, recent);
@@ -47,10 +55,11 @@ export async function POST(req: Request) {
     engines?: string[];
   } | null;
 
-  const question = body?.question?.trim().slice(0, 300);
-  const company = (body?.company ?? "").trim().slice(0, 120);
-  const engines = (body?.engines ?? []).filter((e): e is EngineId =>
-    (ALL_ENGINES as readonly string[]).includes(e)
+  const question = typeof body?.question === "string" ? body.question.trim().slice(0, 300) : "";
+  const company = typeof body?.company === "string" ? body.company.trim().slice(0, 120) : "";
+  // Each chatbot at most once — a repeated name would otherwise mean a repeated paid call.
+  const engines = [...new Set(Array.isArray(body?.engines) ? body.engines : [])].filter(
+    (e): e is EngineId => (ALL_ENGINES as readonly string[]).includes(e)
   );
 
   if (!question || question.length < 4 || !engines.length) {

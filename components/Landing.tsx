@@ -168,7 +168,7 @@ function PublicCheck({ onRequestDemo }: { onRequestDemo: () => void }) {
         </span>
         <h2 className="landing-display mt-3 text-[clamp(30px,3.6vw,46px)] leading-none text-white">Try it now</h2>
         <p className="mt-4 text-base leading-snug text-white/60">
-          Ask any AI assistant a buyer question and see, live, whether it names your company.
+          Ask any AI assistant a buyer question and see whether it names your company - live
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

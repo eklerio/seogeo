@@ -488,7 +488,8 @@ export default function Workspace({
                         key={d.id}
                         onClick={() => {
                           setBoardsOpen(false);
-                          if (!activeBoard) router.push(`/workspace?board=${d.id}`);
+                          if (!activeBoard)
+                            router.push(`/workspace?board=${d.id}&tab=${encodeURIComponent(tab)}`);
                         }}
                         className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition ${
                           activeBoard

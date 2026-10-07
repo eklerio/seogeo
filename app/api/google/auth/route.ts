@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   const origin = originFrom(req);
   const params = new URL(req.url).searchParams;
   const backParam = params.get("back");
-  const back = backParam && backParam.startsWith("/") ? backParam : "/workspace";
+  const back = backParam && /^\/(?![\/\\])/.test(backParam) ? backParam : "/workspace"; // "//x" would leave the site
   const dest = params.get("dest") ?? "";
 
   const { clientId } = (await getConnections()).googleClient ?? {};
